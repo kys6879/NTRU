@@ -19,10 +19,21 @@
  *
  *********************************************************************************/
  
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "ntru_crypto.h"
+
+
+#include <time.h> //for test 2018/11/05
+//#include <chrono> //for test 2018/11/05
+
+#define ENC_112 0 //for test 2018/11/05
+#define ENC_192 0 //for test 2018/11/05
+#define ENC_256 1 //for test 2018/11/05
 
 /* entropy function
  *
@@ -43,10 +54,31 @@ get_entropy(
     /* 2k/8 bytes of entropy are needed to instantiate a DRBG with a
      * security strength of k bits. Here k = 112.
      */
+
+#if ENC_112 //for test 2018/11/05
     static uint8_t seed[28] = {
         'P','l','e','a','s','e',' ','u','s','e',' ','a',' ',
         'd','i','f','f','e','r','e','n','t',' ','s','e','e','d','!'
     };
+#elif ENC_192
+	/* (k x 2)/8  k=192 -> 48*/
+	static uint8_t seed[48] = {
+		'P','l','e','a','s','e',' ','u','s','e',' ','a',' ',
+		'd','i','f','f','e','r','e','n','t',' ','s','e','e','d','!',
+		'1','2','3','4','5','6','7','8','9','0',
+		'a','b','c','d','e','f','g','h','i','j',
+	};
+#elif ENC_256
+	static uint8_t seed[64] = {
+		'P','l','e','a','s','e',' ','u','s','e',' ','a',' ',
+		'd','i','f','f','e','r','e','n','t',' ','s','e','e','d','!',
+		'1','2','3','4','5','6','7','8','9','0',
+		'a','b','c','d','e','f','g','h','i','j',
+		'A','B','C','D','E','F','G','H','I','J',
+		'K','L','M','N','O','P',
+	};
+#endif //for test 2018/11/05
+
     static size_t index;
 
     if (cmd == INIT) {
@@ -121,15 +153,27 @@ DumpHex(
 int
 main(void)
 {
-    uint8_t public_key[557];          /* sized for EES401EP2 */
+    //uint8_t public_key[557];          /* sized for EES401EP2 */
+	uint8_t *public_key = NULL;          //for test 2018/11/05
+
+
     uint16_t public_key_len;          /* no. of octets in public key */
-    uint8_t private_key[607];         /* sized for EES401EP2 */
+   // uint8_t private_key[607];         /* sized for EES401EP2 */
+    uint8_t *private_key = NULL;         //for test 2018/11/05
+
+
     uint16_t private_key_len;         /* no. of octets in private key */
     uint16_t expected_private_key_len;
     uint16_t expected_encoded_public_key_len;
-    uint8_t encoded_public_key[593];  /* sized for EES401EP2 */
+    //uint8_t encoded_public_key[593];  /* sized for EES401EP2 */
+    uint8_t *encoded_public_key = NULL;  //for test 2018/11/05
+
+
     uint16_t encoded_public_key_len;  /* no. of octets in encoded public key */
-    uint8_t ciphertext[552];          /* sized fof EES401EP2 */
+    //uint8_t ciphertext[552];          /* sized fof EES401EP2 */
+    uint8_t *ciphertext = NULL;         //for test 2018/11/05
+
+
     uint16_t ciphertext_len;          /* no. of octets in ciphertext */
     uint8_t plaintext[16];            /* size of AES-128 key */
     uint16_t plaintext_len;           /* no. of octets in plaintext */
@@ -140,12 +184,22 @@ main(void)
     bool error = FALSE;               /* records if error occurred */
     FILE *Handle=NULL;                /* File Handle for writing NTRU key to file */
 
+	clock_t _clk_st, _clk_end; //for test 2018/11/05
+
+
     /* Instantiate a DRBG with 112-bit security strength for key generation
      * to match the security strength of the EES401EP2 parameter set.
      * Here we've chosen to use the personalization string.
      */
-    rc = ntru_crypto_drbg_instantiate(112, pers_str, sizeof(pers_str),
-                                      (ENTROPY_FN) &get_entropy, &drbg);
+
+#if ENC_112 //for test 2018/11/05
+    rc = ntru_crypto_drbg_instantiate(112, pers_str, sizeof(pers_str), (ENTROPY_FN) &get_entropy, &drbg);
+#elif ENC_192
+	rc = ntru_crypto_drbg_instantiate(192, pers_str, sizeof(pers_str), (ENTROPY_FN)&get_entropy, &drbg);
+#elif ENC_256
+	rc = ntru_crypto_drbg_instantiate(256, pers_str, sizeof(pers_str), (ENTROPY_FN)&get_entropy, &drbg);
+#endif //for test 2018/11/05
+
     if (rc != DRBG_OK)
         /* An error occurred during DRBG instantiation. */
         goto error;
@@ -156,8 +210,14 @@ main(void)
     /* Let's find out how large a buffer we need for the public and private
      * keys.
      */
-    rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len,
-                                         NULL, &private_key_len, NULL);
+#if ENC_112 //for test 2018/11/05
+    rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len, NULL, &private_key_len, NULL);
+#elif ENC_192
+    rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES593EP1, &public_key_len, NULL, &private_key_len, NULL);
+#elif ENC_256
+	rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES743EP1, &public_key_len, NULL, &private_key_len, NULL);
+#endif //for test 2018/11/05
+
     if (rc != NTRU_OK)
         /* An error occurred requesting the buffer sizes needed. */
         goto error;
@@ -178,10 +238,22 @@ main(void)
      * to ntru_crypto_ntru_encrypt_keygen() above.
      */
     expected_private_key_len=private_key_len;
-    rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len,
-                                         public_key, &private_key_len,
-                                         private_key);
-    if (rc != NTRU_OK)
+
+
+	//for test 2018/11/05
+	public_key = (uint8_t *)malloc(public_key_len * sizeof(uint8_t)); //for test 2018/11/05 
+	private_key = (uint8_t *)malloc(private_key_len * sizeof(uint8_t)); //for test 2018/11/05
+
+
+#if ENC_112 //for test 2018/11/05
+	rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2, &public_key_len, public_key, &private_key_len, private_key);
+#elif ENC_192
+	rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES593EP1, &public_key_len, public_key, &private_key_len, private_key); //for test 2018/11/05
+#elif ENC_256
+	rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES743EP1, &public_key_len, public_key, &private_key_len, private_key); //for test 2018/11/05
+#endif //for test 2018/11/05
+
+	if (rc != NTRU_OK)
         /* An error occurred during key generation. */
         error = TRUE;
     if (expected_private_key_len!=private_key_len)
@@ -189,7 +261,8 @@ main(void)
       fprintf(stderr,"private-key-length is different than expected\n");
       error = TRUE;
     }
-    printf("Key-pair for NTRU_EES401EP2 generated successfully.\n");
+   // printf("Key-pair for NTRU_EES401EP2 generated successfully.\n");
+    printf("Key-pair for NTRU_EES593EP1 generated successfully.\n"); //for test 2018/11/05
 
 
     /* Uninstantiate the DRBG. */
@@ -233,6 +306,8 @@ main(void)
     printf("DER-encoded public-key buffer size required: %d octets.\n",
             encoded_public_key_len);
 
+
+	encoded_public_key = (uint8_t *)malloc(encoded_public_key_len * sizeof(uint8_t)); //for test 2018/11/05
 
     /* Now we could allocate a buffer of length encoded_public_key_len to
      * hold the encoded public key, but in this example we already have it
@@ -317,9 +392,15 @@ main(void)
      * set that we generated keys for.
      * Here we've chosen not to use the personalization string.
      */
-    rc = ntru_crypto_drbg_instantiate(112, NULL, 0, (ENTROPY_FN) &get_entropy,
-                                      &drbg);
-    if (rc != DRBG_OK)
+#if ENC_112 //for test 2018/11/05
+    rc = ntru_crypto_drbg_instantiate(112, NULL, 0, (ENTROPY_FN) &get_entropy, &drbg);
+#elif ENC_192
+    rc = ntru_crypto_drbg_instantiate(192, NULL, 0, (ENTROPY_FN) &get_entropy, &drbg); //for test 2018/11/05
+#elif ENC_256
+	rc = ntru_crypto_drbg_instantiate(256, NULL, 0, (ENTROPY_FN)&get_entropy, &drbg); //for test 2018/11/05
+#endif //for test 2018/11/05
+
+   if (rc != DRBG_OK)
         /* An error occurred during DRBG instantiation. */
         goto error;
     printf("DRBG at 112-bit security for encryption instantiated "
@@ -338,6 +419,9 @@ main(void)
         /* An error occurred requesting the buffer size needed. */
         goto error;
     printf("Ciphertext buffer size required: %d octets.\n", ciphertext_len);
+
+
+	ciphertext = (uint8_t *)malloc(ciphertext_len * sizeof(uint8_t)); //for test 2018/11/05
 
 
     /* Now we could allocate a buffer of length ciphertext_len to hold the
@@ -410,13 +494,29 @@ main(void)
      * supply the length of that plaintext buffer for decryption.
      */
     plaintext_len = sizeof(plaintext);
-    rc = ntru_crypto_ntru_decrypt(private_key_len, private_key, ciphertext_len,
-                                  ciphertext, &plaintext_len, plaintext);
+
+
+	_clk_st = clock(); // for test 2018/11/05
+	//std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+
+	for (int j = 0; j < 10000 || j < 1; j++)
+	{
+		rc = ntru_crypto_ntru_decrypt(private_key_len, private_key, ciphertext_len,
+			ciphertext, &plaintext_len, plaintext);
+	}
+
+	_clk_end = clock(); // for test 2018/11/05
+	//std::chrono::duration<double> sec = std::chrono::system_clock::now() - start;
+
     if (rc != NTRU_OK)
     {
         fprintf(stderr,"Error: An error occurred decrypting the AES-128 key.\n");
         return 1;
     }
+
+	//printf("\nPocessing Time : %f \n", (double) (_clk_end - _clk_st) / CLOCKS_PER_SEC); // for test 2018/11/05
+	printf("\nPocessing Time : %f ms \n", (double) (_clk_end - _clk_st) / 10000 ); // for test 2018/11/05
+
     printf("AES-128 key decrypted successfully.\n");
     printf("Decoded plaintext length: %d octets\n",plaintext_len);
 
@@ -442,14 +542,28 @@ main(void)
 
 
 
+	// for test 2018/11/05
+	if (public_key != NULL) free(public_key);
+	if (private_key != NULL) free(private_key);
+	if (encoded_public_key != NULL) free(encoded_public_key);
+	if (ciphertext != NULL) free(ciphertext);
+
 
     /* And now the plaintext buffer holds the decrypted AES-128 key. */
     printf("Sample code completed successfully.\n");
 
 
     return 0;
-
+    
 error:
+
+	// for test 2018/11/05
+	if (public_key != NULL) free(public_key);
+	if (private_key != NULL) free(private_key);
+	if (encoded_public_key != NULL) free(encoded_public_key);
+	if (ciphertext != NULL) free(ciphertext);
+
+
     printf("Error (0x%x)\n", rc);
     return 1;
 }
